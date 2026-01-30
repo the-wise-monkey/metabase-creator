@@ -8,15 +8,22 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - ./backend:/app
       - ./data:/app/data
     environment:
       - DATABASE_URL=sqlite:///./data/app.db
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
-      - "3000:80"
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - DOCKER=true
     depends_on:
       - backend
