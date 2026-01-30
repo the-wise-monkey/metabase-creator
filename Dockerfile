@@ -1,6 +1,6 @@
 # Single Dockerfile for full-stack deployment
-# Build: docker build -t metabase-editor .
-# Run: docker run -p 8000:8000 -v ./data:/app/data metabase-editor
+# Build: docker build -t metabase-creator .
+# Run: docker run -p 8000:8000 -v ./data:/app/data metabase-creator
 
 # Stage 1: Build frontend
 FROM node:20-alpine AS frontend-build

@@ -220,7 +220,7 @@ function App() {
               <LayoutDashboard className="text-white" size={24} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-800">Metabase Editor</h1>
+              <h1 className="text-xl font-bold text-slate-800">Metabase Creator</h1>
               <p className="text-sm text-slate-500">JSON to Dashboard in seconds</p>
             </div>
           </div>

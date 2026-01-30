@@ -37,7 +37,7 @@ class MetabaseConnection(Base):
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Metabase Editor")
+app = FastAPI(title="Metabase Creator")
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,4 +1,4 @@
-# Metabase Editor
+# Metabase Creator
 
 Web app to create Metabase dashboards from JSON specifications.
 
