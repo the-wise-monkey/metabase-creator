@@ -1,0 +1,205 @@
+{
+  "meta": {
+    "id": "dashboard_adopcion_banca_personas",
+    "title": "Adopción - Banca Personas",
+    "description": "Dashboard ejecutivo de adopción del producto Banca Personas para management.",
+    "product": "Banca Personas",
+    "owner": "Product Management",
+    "version": "1.0"
+  },
+  "layout": {
+    "columns": 12
+  },
+  "filters": {
+    "items": [
+      {
+        "id": "filter_periodo",
+        "label": "Período",
+        "type": "date_range_preset",
+        "default": "last_12_months"
+      },
+      {
+        "id": "filter_pais",
+        "label": "País",
+        "type": "multi_select"
+      },
+      {
+        "id": "filter_cliente",
+        "label": "Cliente",
+        "type": "multi_select"
+      },
+      {
+        "id": "filter_canal",
+        "label": "Canal",
+        "type": "multi_select"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "section_kpis",
+      "title": null,
+      "position": {"row": 0, "col": 0, "width": 12, "height": 2},
+      "components": [
+        {
+          "id": "kpi_ifs_activas",
+          "type": "metric_card",
+          "position": {"order": 1, "width": 3},
+          "config": {
+            "title": "IFs Activas",
+            "format": "number"
+          },
+          "query_id": "q_kpi_ifs_activas"
+        },
+        {
+          "id": "kpi_usuarios_totales",
+          "type": "metric_card",
+          "position": {"order": 2, "width": 3},
+          "config": {
+            "title": "Usuarios Totales",
+            "format": "number_abbreviated"
+          },
+          "query_id": "q_kpi_usuarios_totales"
+        },
+        {
+          "id": "kpi_mau",
+          "type": "metric_card",
+          "position": {"order": 3, "width": 3},
+          "config": {
+            "title": "MAU",
+            "subtitle": "Usuarios activos últimos 30 días",
+            "format": "number_abbreviated"
+          },
+          "query_id": "q_kpi_mau"
+        },
+        {
+          "id": "kpi_tasa_activacion",
+          "type": "metric_card",
+          "position": {"order": 4, "width": 3},
+          "config": {
+            "title": "Tasa de Activación",
+            "subtitle": "MAU / Registrados",
+            "format": "percentage"
+          },
+          "query_id": "q_kpi_tasa_activacion"
+        }
+      ]
+    },
+    {
+      "id": "section_tendencia",
+      "title": "Crecimiento y Tendencia",
+      "position": {"row": 2, "col": 0, "width": 8, "height": 4},
+      "components": [
+        {
+          "id": "chart_tendencia",
+          "type": "area_chart",
+          "config": {
+            "x_axis": {"field": "mes", "label": "Mes"},
+            "y_axis": {"label": "Usuarios"}
+          },
+          "query_id": "q_tendencia_mensual"
+        }
+      ]
+    },
+    {
+      "id": "section_funnel",
+      "title": "Funnel de Adopción",
+      "position": {"row": 2, "col": 8, "width": 4, "height": 4},
+      "components": [
+        {
+          "id": "chart_funnel",
+          "type": "horizontal_funnel",
+          "config": {
+            "stages": ["Registrados", "Primer Login", "Primera Tx", "Activo Recurrente"]
+          },
+          "query_id": "q_funnel_adopcion"
+        }
+      ]
+    },
+    {
+      "id": "section_tabla_pais",
+      "title": "Desglose por País",
+      "position": {"row": 6, "col": 0, "width": 12, "height": 4},
+      "components": [
+        {
+          "id": "table_pais",
+          "type": "data_table",
+          "config": {
+            "columns": [
+              {"field": "pais", "label": "País"},
+              {"field": "ifs", "label": "IFs", "format": "number"},
+              {"field": "usuarios", "label": "Usuarios", "format": "number"},
+              {"field": "mau", "label": "MAU", "format": "number"},
+              {"field": "tasa_activacion", "label": "Activación", "format": "percentage"}
+            ]
+          },
+          "query_id": "q_metricas_por_pais"
+        }
+      ]
+    },
+    {
+      "id": "section_canal",
+      "title": "Adopción por Canal",
+      "position": {"row": 10, "col": 0, "width": 5, "height": 4},
+      "components": [
+        {
+          "id": "chart_canal_donut",
+          "type": "donut_chart",
+          "config": {
+            "metric": "porcentaje_usuarios",
+            "dimension": "canal"
+          },
+          "query_id": "q_adopcion_canal"
+        }
+      ]
+    },
+    {
+      "id": "section_salud",
+      "title": "Salud de la Base",
+      "position": {"row": 10, "col": 5, "width": 7, "height": 4},
+      "components": [
+        {
+          "id": "table_salud",
+          "type": "data_table",
+          "config": {
+            "columns": [
+              {"field": "metrica", "label": "Métrica"},
+              {"field": "valor", "label": "Valor"},
+              {"field": "porcentaje", "label": "%", "format": "percentage"}
+            ]
+          },
+          "query_id": "q_salud_base"
+        }
+      ]
+    }
+  ],
+  "queries": {
+    "q_kpi_ifs_activas": {
+      "sql": "SELECT COUNT(DISTINCT client_id) as value FROM users WHERE status = 'active' AND created_at >= CURRENT_DATE - INTERVAL '12 months'"
+    },
+    "q_kpi_usuarios_totales": {
+      "sql": "SELECT COUNT(*) as value FROM users WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'"
+    },
+    "q_kpi_mau": {
+      "sql": "SELECT COUNT(DISTINCT user_id) as value FROM user_sessions WHERE session_date >= CURRENT_DATE - INTERVAL '30 days'"
+    },
+    "q_kpi_tasa_activacion": {
+      "sql": "SELECT ROUND(100.0 * COUNT(DISTINCT s.user_id) / NULLIF(COUNT(DISTINCT u.id), 0), 2) as value FROM users u LEFT JOIN user_sessions s ON u.id = s.user_id AND s.session_date >= CURRENT_DATE - INTERVAL '30 days' WHERE u.created_at >= CURRENT_DATE - INTERVAL '12 months'"
+    },
+    "q_tendencia_mensual": {
+      "sql": "SELECT DATE_TRUNC('month', created_at) as mes, COUNT(*) as registrados_acumulados, COUNT(DISTINCT CASE WHEN last_login >= DATE_TRUNC('month', created_at) THEN id END) as mau FROM users WHERE created_at >= CURRENT_DATE - INTERVAL '12 months' GROUP BY 1 ORDER BY 1"
+    },
+    "q_funnel_adopcion": {
+      "sql": "SELECT 'Registrados' as stage, COUNT(*) as value FROM users UNION ALL SELECT 'Primer Login', COUNT(*) FROM users WHERE first_login IS NOT NULL UNION ALL SELECT 'Primera Tx', COUNT(*) FROM users WHERE first_transaction IS NOT NULL UNION ALL SELECT 'Activo Recurrente', COUNT(*) FROM users WHERE transactions_count >= 5"
+    },
+    "q_metricas_por_pais": {
+      "sql": "SELECT country as pais, COUNT(DISTINCT client_id) as ifs, COUNT(*) as usuarios, COUNT(DISTINCT CASE WHEN last_login >= CURRENT_DATE - INTERVAL '30 days' THEN id END) as mau, ROUND(100.0 * COUNT(DISTINCT CASE WHEN last_login >= CURRENT_DATE - INTERVAL '30 days' THEN id END) / NULLIF(COUNT(*), 0), 2) as tasa_activacion FROM users GROUP BY 1 ORDER BY 3 DESC"
+    },
+    "q_adopcion_canal": {
+      "sql": "SELECT channel as canal, COUNT(*) as usuarios, ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as porcentaje_usuarios FROM users GROUP BY 1 ORDER BY 2 DESC"
+    },
+    "q_salud_base": {
+      "sql": "SELECT 'Usuarios Bloqueados' as metrica, COUNT(*) as valor, ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM users), 2) as porcentaje FROM users WHERE status = 'blocked' UNION ALL SELECT 'Inactivos 90+ días', COUNT(*), ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM users), 2) FROM users WHERE last_login < CURRENT_DATE - INTERVAL '90 days' UNION ALL SELECT 'Churn (6+ meses)', COUNT(*), ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM users), 2) FROM users WHERE last_login < CURRENT_DATE - INTERVAL '6 months'"
+    }
+  }
+}
