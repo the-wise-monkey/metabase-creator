@@ -11,7 +11,15 @@ from sqlalchemy.orm import sessionmaker, Session
 import httpx
 import json
 import os
+import logging
 from cryptography.fernet import Fernet
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 import base64
 import hashlib
 
@@ -123,14 +131,35 @@ class MetabaseClient:
             return response.json()
 
 async def get_metabase_session(url: str, username: str, password: str) -> str:
-    async with httpx.AsyncClient(verify=False) as client:
-        response = await client.post(
-            f"{url.rstrip('/')}/api/session",
-            json={"username": username, "password": password},
-            timeout=30.0
-        )
-        response.raise_for_status()
-        return response.json()["id"]
+    session_url = f"{url.rstrip('/')}/api/session"
+    logger.info(f"Attempting to connect to Metabase at: {session_url}")
+    logger.info(f"Username: {username}")
+
+    try:
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.post(
+                session_url,
+                json={"username": username, "password": password},
+                timeout=30.0
+            )
+            logger.info(f"Metabase response status: {response.status_code}")
+
+            if response.status_code != 200:
+                logger.error(f"Metabase error response: {response.text}")
+
+            response.raise_for_status()
+            session_id = response.json()["id"]
+            logger.info(f"Successfully connected to Metabase, session obtained")
+            return session_id
+    except httpx.ConnectError as e:
+        logger.error(f"Connection error to {session_url}: {e}")
+        raise
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout connecting to {session_url}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error connecting to Metabase: {type(e).__name__}: {e}")
+        raise
 
 # Visualization type mapping
 VIZ_TYPE_MAP = {
@@ -165,14 +194,35 @@ async def root():
 
 @api_router.post("/connections", response_model=ConnectionResponse)
 async def create_connection(conn: ConnectionCreate, db: Session = Depends(get_db)):
+    logger.info(f"Creating connection '{conn.name}' to {conn.url}")
+
     # Check if connection exists
     existing = db.query(MetabaseConnection).filter(MetabaseConnection.name == conn.name).first()
-    
+
     # Test connection
     try:
         session_token = await get_metabase_session(conn.url, conn.username, conn.password)
+    except httpx.ConnectError as e:
+        error_msg = f"Cannot reach Metabase at {conn.url}. Check URL and network connectivity."
+        logger.error(f"Connection failed: {error_msg} - {e}")
+        raise HTTPException(status_code=400, detail=error_msg)
+    except httpx.TimeoutException as e:
+        error_msg = f"Connection to {conn.url} timed out after 30 seconds."
+        logger.error(f"Connection failed: {error_msg} - {e}")
+        raise HTTPException(status_code=400, detail=error_msg)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            error_msg = "Invalid username or password"
+        elif e.response.status_code == 403:
+            error_msg = "Access denied. Check user permissions."
+        else:
+            error_msg = f"Metabase returned error {e.response.status_code}: {e.response.text}"
+        logger.error(f"Connection failed: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Could not connect to Metabase: {str(e)}")
+        error_msg = f"Unexpected error: {type(e).__name__}: {str(e)}"
+        logger.error(f"Connection failed: {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
     
     encrypted_password = fernet.encrypt(conn.password.encode()).decode()
     
@@ -212,7 +262,9 @@ async def create_connection(conn: ConnectionCreate, db: Session = Depends(get_db
 
 @api_router.get("/connections", response_model=List[ConnectionResponse])
 async def list_connections(db: Session = Depends(get_db)):
+    logger.info("Fetching all connections")
     connections = db.query(MetabaseConnection).all()
+    logger.info(f"Found {len(connections)} connection(s)")
     return [
         ConnectionResponse(
             id=c.id,
@@ -224,7 +276,7 @@ async def list_connections(db: Session = Depends(get_db)):
         for c in connections
     ]
 
-@app.get("/connections/{name}")
+@api_router.get("/connections/{name}")
 async def get_connection(name: str, db: Session = Depends(get_db)):
     conn = db.query(MetabaseConnection).filter(MetabaseConnection.name == name).first()
     if not conn:
@@ -246,7 +298,7 @@ async def delete_connection(name: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "deleted"}
 
-@app.get("/connections/{name}/databases")
+@api_router.get("/connections/{name}/databases")
 async def get_databases(name: str, db: Session = Depends(get_db)):
     conn = db.query(MetabaseConnection).filter(MetabaseConnection.name == name).first()
     if not conn:
@@ -272,7 +324,7 @@ async def get_databases(name: str, db: Session = Depends(get_db)):
             return await client.get("/database")
         raise HTTPException(status_code=e.response.status_code, detail=str(e))
 
-@app.get("/connections/{name}/collections")
+@api_router.get("/connections/{name}/collections")
 async def get_collections(name: str, db: Session = Depends(get_db)):
     conn = db.query(MetabaseConnection).filter(MetabaseConnection.name == name).first()
     if not conn:
