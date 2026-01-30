@@ -2,6 +2,8 @@
 
 Create Metabase dashboards from JSON specifications. Paste JSON, run, get dashboard link.
 
+<img width="1920" height="956" alt="Metabase Creator" src="https://github.com/user-attachments/assets/d8da5678-c423-4241-b71f-dbe6eb0420a9" />
+
 ## Quick Start
 
 ### Single Container (Recommended)
