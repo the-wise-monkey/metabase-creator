@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from sqlalchemy import create_engine, Column, String, Integer, Text
 from sqlalchemy.ext.declarative import declarative_base
@@ -34,7 +37,7 @@ class MetabaseConnection(Base):
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Metabase Dashboard Creator")
+app = FastAPI(title="Metabase Editor")
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,6 +46,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Router - all API routes under /api
+api_router = APIRouter(prefix="/api")
 
 def get_db():
     db = SessionLocal()
@@ -153,11 +159,11 @@ def convert_grid_position(spec_pos: Dict, spec_columns: int = 12) -> Dict:
     }
 
 # Routes
-@app.get("/")
+@api_router.get("/")
 async def root():
     return {"status": "ok", "message": "Metabase Dashboard Creator API"}
 
-@app.post("/connections", response_model=ConnectionResponse)
+@api_router.post("/connections", response_model=ConnectionResponse)
 async def create_connection(conn: ConnectionCreate, db: Session = Depends(get_db)):
     # Check if connection exists
     existing = db.query(MetabaseConnection).filter(MetabaseConnection.name == conn.name).first()
@@ -204,7 +210,7 @@ async def create_connection(conn: ConnectionCreate, db: Session = Depends(get_db
         is_connected=True
     )
 
-@app.get("/connections", response_model=List[ConnectionResponse])
+@api_router.get("/connections", response_model=List[ConnectionResponse])
 async def list_connections(db: Session = Depends(get_db)):
     connections = db.query(MetabaseConnection).all()
     return [
@@ -231,7 +237,7 @@ async def get_connection(name: str, db: Session = Depends(get_db)):
         is_connected=conn.session_token is not None
     )
 
-@app.delete("/connections/{name}")
+@api_router.delete("/connections/{name}")
 async def delete_connection(name: str, db: Session = Depends(get_db)):
     conn = db.query(MetabaseConnection).filter(MetabaseConnection.name == name).first()
     if not conn:
@@ -290,7 +296,7 @@ async def get_collections(name: str, db: Session = Depends(get_db)):
             return await client.get("/collection")
         raise HTTPException(status_code=e.response.status_code, detail=str(e))
 
-@app.post("/validate")
+@api_router.post("/validate")
 async def validate_spec(spec: Dict[str, Any]):
     """Validate the dashboard specification JSON"""
     errors = []
@@ -353,7 +359,7 @@ async def validate_spec(spec: Dict[str, Any]):
         summary=summary
     )
 
-@app.post("/create-dashboard")
+@api_router.post("/create-dashboard")
 async def create_dashboard(request: DashboardSpec, db: Session = Depends(get_db)):
     """Create a complete dashboard in Metabase from the specification"""
     
@@ -537,6 +543,22 @@ def map_filter_type(spec_type: str) -> str:
         "number": "number/=",
     }
     return type_map.get(spec_type, "string/=")
+
+# Include API router
+app.include_router(api_router)
+
+# Serve static frontend (for single-container deployment)
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve frontend SPA - catch-all route"""
+        file_path = STATIC_DIR / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(STATIC_DIR / "index.html")
 
 if __name__ == "__main__":
     import uvicorn

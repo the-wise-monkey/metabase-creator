@@ -1,0 +1,205 @@
+{
+  "meta": {
+    "id": "dashboard_product_metrics",
+    "title": "Product Metrics Dashboard",
+    "description": "Executive dashboard for product adoption and engagement metrics.",
+    "product": "SaaS Product",
+    "owner": "Product Management",
+    "version": "1.0"
+  },
+  "layout": {
+    "columns": 12
+  },
+  "filters": {
+    "items": [
+      {
+        "id": "filter_period",
+        "label": "Period",
+        "type": "date_range_preset",
+        "default": "last_12_months"
+      },
+      {
+        "id": "filter_region",
+        "label": "Region",
+        "type": "multi_select"
+      },
+      {
+        "id": "filter_plan",
+        "label": "Plan",
+        "type": "multi_select"
+      },
+      {
+        "id": "filter_source",
+        "label": "Source",
+        "type": "multi_select"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "section_kpis",
+      "title": null,
+      "position": {"row": 0, "col": 0, "width": 12, "height": 2},
+      "components": [
+        {
+          "id": "kpi_total_accounts",
+          "type": "metric_card",
+          "position": {"order": 1, "width": 3},
+          "config": {
+            "title": "Total Accounts",
+            "format": "number"
+          },
+          "query_id": "q_kpi_total_accounts"
+        },
+        {
+          "id": "kpi_total_users",
+          "type": "metric_card",
+          "position": {"order": 2, "width": 3},
+          "config": {
+            "title": "Total Users",
+            "format": "number_abbreviated"
+          },
+          "query_id": "q_kpi_total_users"
+        },
+        {
+          "id": "kpi_mau",
+          "type": "metric_card",
+          "position": {"order": 3, "width": 3},
+          "config": {
+            "title": "MAU",
+            "subtitle": "Monthly Active Users",
+            "format": "number_abbreviated"
+          },
+          "query_id": "q_kpi_mau"
+        },
+        {
+          "id": "kpi_activation_rate",
+          "type": "metric_card",
+          "position": {"order": 4, "width": 3},
+          "config": {
+            "title": "Activation Rate",
+            "subtitle": "MAU / Registered",
+            "format": "percentage"
+          },
+          "query_id": "q_kpi_activation_rate"
+        }
+      ]
+    },
+    {
+      "id": "section_growth",
+      "title": "Growth & Trends",
+      "position": {"row": 2, "col": 0, "width": 8, "height": 4},
+      "components": [
+        {
+          "id": "chart_growth",
+          "type": "area_chart",
+          "config": {
+            "x_axis": {"field": "month", "label": "Month"},
+            "y_axis": {"label": "Users"}
+          },
+          "query_id": "q_monthly_trend"
+        }
+      ]
+    },
+    {
+      "id": "section_funnel",
+      "title": "Adoption Funnel",
+      "position": {"row": 2, "col": 8, "width": 4, "height": 4},
+      "components": [
+        {
+          "id": "chart_funnel",
+          "type": "horizontal_funnel",
+          "config": {
+            "stages": ["Registered", "First Login", "First Action", "Active User"]
+          },
+          "query_id": "q_adoption_funnel"
+        }
+      ]
+    },
+    {
+      "id": "section_table_region",
+      "title": "Metrics by Region",
+      "position": {"row": 6, "col": 0, "width": 12, "height": 4},
+      "components": [
+        {
+          "id": "table_region",
+          "type": "data_table",
+          "config": {
+            "columns": [
+              {"field": "region", "label": "Region"},
+              {"field": "accounts", "label": "Accounts", "format": "number"},
+              {"field": "users", "label": "Users", "format": "number"},
+              {"field": "mau", "label": "MAU", "format": "number"},
+              {"field": "activation_rate", "label": "Activation", "format": "percentage"}
+            ]
+          },
+          "query_id": "q_metrics_by_region"
+        }
+      ]
+    },
+    {
+      "id": "section_source",
+      "title": "Users by Source",
+      "position": {"row": 10, "col": 0, "width": 5, "height": 4},
+      "components": [
+        {
+          "id": "chart_source_donut",
+          "type": "donut_chart",
+          "config": {
+            "metric": "user_percentage",
+            "dimension": "source"
+          },
+          "query_id": "q_users_by_source"
+        }
+      ]
+    },
+    {
+      "id": "section_health",
+      "title": "User Health",
+      "position": {"row": 10, "col": 5, "width": 7, "height": 4},
+      "components": [
+        {
+          "id": "table_health",
+          "type": "data_table",
+          "config": {
+            "columns": [
+              {"field": "metric", "label": "Metric"},
+              {"field": "value", "label": "Value"},
+              {"field": "percentage", "label": "%", "format": "percentage"}
+            ]
+          },
+          "query_id": "q_user_health"
+        }
+      ]
+    }
+  ],
+  "queries": {
+    "q_kpi_total_accounts": {
+      "sql": "SELECT COUNT(DISTINCT account_id) as value FROM users WHERE status = 'active' AND created_at >= CURRENT_DATE - INTERVAL '12 months'"
+    },
+    "q_kpi_total_users": {
+      "sql": "SELECT COUNT(*) as value FROM users WHERE created_at >= CURRENT_DATE - INTERVAL '12 months'"
+    },
+    "q_kpi_mau": {
+      "sql": "SELECT COUNT(DISTINCT user_id) as value FROM user_sessions WHERE session_date >= CURRENT_DATE - INTERVAL '30 days'"
+    },
+    "q_kpi_activation_rate": {
+      "sql": "SELECT ROUND(100.0 * COUNT(DISTINCT s.user_id) / NULLIF(COUNT(DISTINCT u.id), 0), 2) as value FROM users u LEFT JOIN user_sessions s ON u.id = s.user_id AND s.session_date >= CURRENT_DATE - INTERVAL '30 days' WHERE u.created_at >= CURRENT_DATE - INTERVAL '12 months'"
+    },
+    "q_monthly_trend": {
+      "sql": "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as registered, COUNT(DISTINCT CASE WHEN last_login >= DATE_TRUNC('month', created_at) THEN id END) as mau FROM users WHERE created_at >= CURRENT_DATE - INTERVAL '12 months' GROUP BY 1 ORDER BY 1"
+    },
+    "q_adoption_funnel": {
+      "sql": "SELECT 'Registered' as stage, COUNT(*) as value FROM users UNION ALL SELECT 'First Login', COUNT(*) FROM users WHERE first_login IS NOT NULL UNION ALL SELECT 'First Action', COUNT(*) FROM users WHERE first_action IS NOT NULL UNION ALL SELECT 'Active User', COUNT(*) FROM users WHERE actions_count >= 5"
+    },
+    "q_metrics_by_region": {
+      "sql": "SELECT region, COUNT(DISTINCT account_id) as accounts, COUNT(*) as users, COUNT(DISTINCT CASE WHEN last_login >= CURRENT_DATE - INTERVAL '30 days' THEN id END) as mau, ROUND(100.0 * COUNT(DISTINCT CASE WHEN last_login >= CURRENT_DATE - INTERVAL '30 days' THEN id END) / NULLIF(COUNT(*), 0), 2) as activation_rate FROM users GROUP BY 1 ORDER BY 3 DESC"
+    },
+    "q_users_by_source": {
+      "sql": "SELECT source, COUNT(*) as users, ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 2) as user_percentage FROM users GROUP BY 1 ORDER BY 2 DESC"
+    },
+    "q_user_health": {
+      "sql": "SELECT 'Blocked Users' as metric, COUNT(*) as value, ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM users), 2) as percentage FROM users WHERE status = 'blocked' UNION ALL SELECT 'Inactive 90+ days', COUNT(*), ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM users), 2) FROM users WHERE last_login < CURRENT_DATE - INTERVAL '90 days' UNION ALL SELECT 'Churned (6+ months)', COUNT(*), ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM users), 2) FROM users WHERE last_login < CURRENT_DATE - INTERVAL '6 months'"
+    }
+  }
+}
