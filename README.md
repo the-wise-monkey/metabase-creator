@@ -1,15 +1,13 @@
 # Metabase Creator
 
-Web app to create Metabase dashboards from JSON specifications.
-
-**Simple flow:** Paste JSON → Run → Get Metabase link
+Create Metabase dashboards from JSON specifications. Paste JSON, run, get dashboard link.
 
 ## Quick Start
 
 ### Single Container (Recommended)
 ```bash
-docker build -t metabase-editor .
-docker run -p 8000:8000 -v ./data:/app/data metabase-editor
+docker build -t metabase-creator .
+docker run -p 8000:8000 -v ./data:/app/data metabase-creator
 ```
 Open http://localhost:8000
 
@@ -19,44 +17,33 @@ docker compose up --build
 ```
 Open http://localhost:3000
 
+## How It Works
+
+1. **Connect** - Add your Metabase URL and credentials
+2. **Configure** - Select database, paste your JSON spec
+3. **Create** - Click create, get a link to your new dashboard
+
 ## JSON Specification
 
-The JSON spec must include SQL queries inline. See [examples/product_metrics.json](examples/product_metrics.json) for a complete example.
+See [examples/product_metrics.json](examples/product_metrics.json) for a complete example.
 
 ```json
 {
   "meta": {
-    "id": "my_dashboard",
     "title": "My Dashboard",
     "description": "Executive dashboard"
-  },
-  "layout": {
-    "columns": 12
-  },
-  "filters": {
-    "items": [
-      {
-        "id": "filter_date",
-        "label": "Date",
-        "type": "date_range_preset",
-        "default": "last_30_days"
-      }
-    ]
   },
   "sections": [
     {
       "id": "section_kpis",
-      "title": "Main KPIs",
+      "title": "KPIs",
       "position": {"row": 0, "col": 0, "width": 12, "height": 2},
       "components": [
         {
           "id": "kpi_total",
           "type": "metric_card",
           "position": {"order": 1, "width": 3},
-          "config": {
-            "title": "Total Sales",
-            "format": "number"
-          },
+          "config": {"title": "Total Sales", "format": "number"},
           "query_id": "q_total_sales"
         }
       ]
@@ -64,13 +51,13 @@ The JSON spec must include SQL queries inline. See [examples/product_metrics.jso
   ],
   "queries": {
     "q_total_sales": {
-      "sql": "SELECT SUM(amount) as value FROM sales WHERE date >= CURRENT_DATE - INTERVAL '30 days'"
+      "sql": "SELECT SUM(amount) as value FROM sales"
     }
   }
 }
 ```
 
-## Supported Visualization Types
+## Visualization Types
 
 | JSON Type | Metabase Type |
 |-----------|---------------|
@@ -83,50 +70,21 @@ The JSON spec must include SQL queries inline. See [examples/product_metrics.jso
 | `data_table` | Table |
 | `choropleth_map` | Map |
 
-## Supported Filter Types
+## Filter Types
 
-- `date_range_preset` - Date picker with presets
-- `multi_select` - Multiple selection
-- `single_select` - Single selection
-- `text` - Free text
-- `number` - Numeric
-
-## Architecture
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Browser   │────▶│   Frontend  │────▶│   Backend   │
-│             │     │   (React)   │     │  (FastAPI)  │
-└─────────────┘     └─────────────┘     └──────┬──────┘
-                                               │
-                                               ▼
-                                        ┌─────────────┐
-                                        │  Metabase   │
-                                        │    API      │
-                                        └─────────────┘
-```
-
-## API Endpoints
-
-All endpoints are prefixed with `/api`.
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/connections` | GET | List saved connections |
-| `/api/connections` | POST | Create/update connection |
-| `/api/connections/{name}` | DELETE | Delete connection |
-| `/api/connections/{name}/databases` | GET | List Metabase databases |
-| `/api/connections/{name}/collections` | GET | List Metabase collections |
-| `/api/validate` | POST | Validate JSON spec |
-| `/api/create-dashboard` | POST | Create dashboard in Metabase |
+| Type | Description |
+|------|-------------|
+| `date_range_preset` | Date picker with presets |
+| `multi_select` | Multiple selection |
+| `single_select` | Single selection |
+| `text` | Free text |
+| `number` | Numeric |
 
 ## Local Development
 
 **Backend:**
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
 pip install -r requirements.txt
 python main.py
 ```
@@ -138,9 +96,23 @@ npm install
 npm run dev
 ```
 
+## API
+
+All endpoints prefixed with `/api`.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/connections` | GET | List connections |
+| `/api/connections` | POST | Create connection |
+| `/api/connections/{name}` | DELETE | Delete connection |
+| `/api/connections/{name}/databases` | GET | List databases |
+| `/api/connections/{name}/collections` | GET | List collections |
+| `/api/validate` | POST | Validate JSON spec |
+| `/api/create-dashboard` | POST | Create dashboard |
+
 ## Notes
 
-- Metabase credentials are stored encrypted in SQLite
-- Session tokens are automatically renewed on expiry
-- The 12-column grid is converted to Metabase's 24-column grid automatically
-- SSL certificate verification is disabled for local/self-signed certs
+- Credentials stored encrypted (SQLite)
+- Session tokens auto-renewed on expiry
+- 12-column grid converts to Metabase's 24-column grid
+- SSL verification disabled for self-signed certs
